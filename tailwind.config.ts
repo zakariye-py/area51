@@ -57,6 +57,18 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Area 51 custom colors
+        neon: {
+          green: "hsl(var(--neon-green))",
+          cyan: "hsl(var(--neon-cyan))",
+          purple: "hsl(var(--neon-purple))",
+        },
+        space: {
+          blue: "hsl(var(--space-blue))",
+        },
+        cosmic: {
+          purple: "hsl(var(--cosmic-purple))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -80,10 +92,42 @@ export default {
             height: "0",
           },
         },
+        "pulse-glow": {
+          "0%, 100%": {
+            opacity: "0.7",
+            transform: "scale(1)",
+          },
+          "50%": {
+            opacity: "1",
+            transform: "scale(1.05)",
+          },
+        },
+        "float": {
+          "0%, 100%": {
+            transform: "translateY(0)",
+          },
+          "50%": {
+            transform: "translateY(-10px)",
+          },
+        },
+        "neon-flicker": {
+          "0%, 100%": {
+            opacity: "1",
+          },
+          "2%": {
+            opacity: "0.8",
+          },
+          "4%": {
+            opacity: "1",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite alternate",
+        "float": "float 3s ease-in-out infinite",
+        "neon-flicker": "neon-flicker 1.5s linear infinite",
       },
     },
   },
