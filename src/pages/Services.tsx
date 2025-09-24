@@ -18,9 +18,9 @@ const Services = () => {
       image: recordingImage,
       duration: "1-4 hours",
       pricing: [
-        { type: "Hourly Rate", price: "$75/hour", description: "Perfect for short sessions" },
-        { type: "Half Day", price: "$280", description: "4 hours of recording time" },
-        { type: "Full Day", price: "$500", description: "8 hours of recording time" }
+        { type: "Hourly Rate", price: "£?/hour", description: "Perfect for short sessions" },
+        { type: "Half Day", price: "£?", description: "4 hours of recording time" },
+        { type: "Full Day", price: "£?", description: "8 hours of recording time" }
       ],
       features: [
         "Professional condenser microphones",
@@ -39,9 +39,9 @@ const Services = () => {
       image: mixingImage,
       duration: "1-3 days",
       pricing: [
-        { type: "Per Song", price: "$150", description: "Professional mix for one track" },
-        { type: "EP Package", price: "$500", description: "4-6 songs mixed" },
-        { type: "Album Package", price: "$1200", description: "10+ songs mixed" }
+        { type: "Per Song", price: "£?", description: "Professional mix for one track" },
+        { type: "EP Package", price: "£?", description: "4-6 songs mixed" },
+        { type: "Album Package", price: "£?", description: "10+ songs mixed" }
       ],
       features: [
         "Professional mixing consoles",

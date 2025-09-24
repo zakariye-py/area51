@@ -14,7 +14,7 @@ const Booking = () => {
       name: "Recording Session",
       icon: <Mic className="h-5 w-5" />,
       duration: "1-4 hours",
-      price: "From $75/hour",
+      price: "From £?/hour",
       description: "Professional recording in our state-of-the-art booths"
     },
     {
@@ -22,7 +22,7 @@ const Booking = () => {
       name: "Mixing Service",
       icon: <Headphones className="h-5 w-5" />,
       duration: "1-3 days",
-      price: "From $150/song",
+      price: "From £?/song",
       description: "Expert mixing to bring your tracks to life"
     },
     {
@@ -30,7 +30,7 @@ const Booking = () => {
       name: "Mastering Service",
       icon: <Volume2 className="h-5 w-5" />,
       duration: "1-2 days",
-      price: "From $75/song",
+      price: "From £?/song",
       description: "Final polish and optimization for your music"
     }
   ];

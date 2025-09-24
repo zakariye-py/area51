@@ -45,9 +45,6 @@ const Navigation = () => {
                 )}
               </Link>
             ))}
-            <Button variant="hero" size="sm">
-              Book Now
-            </Button>
           </div>
 
           {/* Mobile Navigation */}
@@ -72,9 +69,6 @@ const Navigation = () => {
                       {item.name}
                     </Link>
                   ))}
-                  <Button variant="hero" className="w-full mt-4">
-                    Book Now
-                  </Button>
                 </div>
               </SheetContent>
             </Sheet>

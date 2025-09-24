@@ -162,13 +162,13 @@ const Home = () => {
           
           <div className="flex justify-center space-x-6">
             <Button variant="outline" size="lg" asChild>
-              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer">
+              <a href="https://instagram.com/area51booths" target="_blank" rel="noopener noreferrer">
                 <Instagram className="h-5 w-5 mr-2" />
                 Instagram
               </a>
             </Button>
             <Button variant="outline" size="lg" asChild>
-              <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer">
+              <a href="https://tiktok.com/area51booths" target="_blank" rel="noopener noreferrer">
                 <Music className="h-5 w-5 mr-2" />
                 TikTok
               </a>
