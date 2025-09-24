@@ -2,12 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { Mic, Headphones, Volume2, Instagram, Music, Zap } from "lucide-react";
+import { useAuth } from '@/contexts/AuthContext';
 import heroImage from "@/assets/hero-studio.jpg";
 import recordingImage from "@/assets/recording-service.jpg";
 import mixingImage from "@/assets/mixing-service.jpg";
 import masteringImage from "@/assets/mastering-service.jpg";
 
 const Home = () => {
+  const { user } = useAuth();
   const services = [
     {
       icon: <Mic className="h-8 w-8" />,
@@ -74,7 +76,9 @@ const Home = () => {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button variant="hero" size="lg" asChild>
-              <Link to="/booking">Book Your Session</Link>
+              <Link to={user ? "/dashboard" : "/auth"}>
+                {user ? "My Dashboard" : "Get Started"}
+              </Link>
             </Button>
             <Button variant="outline" size="lg" asChild>
               <Link to="/services">Explore Services</Link>

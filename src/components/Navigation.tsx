@@ -2,11 +2,13 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User, LogOut } from "lucide-react";
+import { useAuth } from '@/contexts/AuthContext';
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { user, signOut } = useAuth();
 
   const navItems = [
     { name: "Home", path: "/" },
@@ -45,6 +47,25 @@ const Navigation = () => {
                 )}
               </Link>
             ))}
+            
+            {/* Auth section */}
+            {user ? (
+              <div className="flex items-center space-x-4 ml-4">
+                <Link to="/dashboard">
+                  <Button variant="outline" size="sm" className="border-neon-green/50 hover:bg-neon-green/10">
+                    <User className="mr-2 h-4 w-4" />
+                    Dashboard
+                  </Button>
+                </Link>
+                <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground hover:text-neon-green">
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <Link to="/auth">
+                <Button variant="hero" className="ml-4">Sign In</Button>
+              </Link>
+            )}
           </div>
 
           {/* Mobile Navigation */}
@@ -69,6 +90,26 @@ const Navigation = () => {
                       {item.name}
                     </Link>
                   ))}
+                  
+                  {/* Mobile Auth section */}
+                  <div className="pt-4 border-t border-border space-y-2">
+                    {user ? (
+                      <>
+                        <Link to="/dashboard" onClick={() => setIsOpen(false)}>
+                          <Button variant="outline" className="w-full border-neon-green/50">
+                            Dashboard
+                          </Button>
+                        </Link>
+                        <Button variant="ghost" onClick={() => { signOut(); setIsOpen(false); }} className="w-full text-muted-foreground">
+                          Sign Out
+                        </Button>
+                      </>
+                    ) : (
+                      <Link to="/auth" onClick={() => setIsOpen(false)}>
+                        <Button variant="hero" className="w-full">Sign In</Button>
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </SheetContent>
             </Sheet>
