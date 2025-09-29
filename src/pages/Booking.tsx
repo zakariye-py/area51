@@ -1,54 +1,144 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Clock, Mic, Headphones, Volume2, ExternalLink } from "lucide-react";
+import { Calendar, Clock, Mic, Headphones, Volume2, CreditCard, User, Mail, Phone } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import stripePromise from "@/lib/stripe";
+import { createBooking, createPaymentIntent, BookingData } from "@/lib/booking-api";
+import { setUserCookie, getUserCookie } from "@/lib/cookies";
 
 const Booking = () => {
   const [selectedService, setSelectedService] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
+  const [customDuration, setCustomDuration] = useState(1);
+  const [customerInfo, setCustomerInfo] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    notes: ""
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { toast } = useToast();
+
+  // Load user data from cookies on component mount
+  useEffect(() => {
+    const userData = getUserCookie();
+    if (userData) {
+      setCustomerInfo(prev => ({
+        ...prev,
+        name: userData.name || "",
+        email: userData.email || "",
+        phone: userData.phone || ""
+      }));
+    }
+  }, []);
 
   const services = [
     {
       id: "recording",
       name: "Recording Session",
       icon: <Mic className="h-5 w-5" />,
-      duration: "1-4 hours",
-      price: "From £?/hour",
       description: "Professional recording in our state-of-the-art booths"
     },
     {
       id: "mixing",
       name: "Mixing Service",
       icon: <Headphones className="h-5 w-5" />,
-      duration: "1-3 days",
-      price: "From £?/song",
       description: "Expert mixing to bring your tracks to life"
     },
     {
       id: "mastering",
       name: "Mastering Service",
       icon: <Volume2 className="h-5 w-5" />,
-      duration: "1-2 days",
-      price: "From £?/song",
       description: "Final polish and optimization for your music"
     }
   ];
 
+  const hourlyRate = 10; // £10 per hour
+  const totalPrice = customDuration * hourlyRate;
+
   const timeSlots = [
-    "9:00 AM - 10:00 AM",
-    "10:00 AM - 12:00 PM",
-    "12:00 PM - 2:00 PM",
-    "2:00 PM - 4:00 PM",
-    "4:00 PM - 6:00 PM",
-    "6:00 PM - 8:00 PM",
-    "8:00 PM - 10:00 PM"
+    "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
+    "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM",
+    "5:00 PM", "6:00 PM", "7:00 PM", "8:00 PM"
   ];
 
-  // Placeholder for Calendly integration
-  const handleCalendlyRedirect = () => {
-    // This would redirect to your actual Calendly booking page
-    window.open("https://calendly.com/area51booths", "_blank");
+  const selectedServiceData = services.find(s => s.id === selectedService);
+
+  const handleInputChange = (field: string, value: string) => {
+    setCustomerInfo(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handlePayment = async () => {
+    if (!selectedServiceData || !selectedDate || !selectedTime) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a service, date, and time.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!customerInfo.name || !customerInfo.email) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in your name and email.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // Save user data to cookies
+      setUserCookie(customerInfo);
+
+      // Create booking
+      const bookingData: BookingData = {
+        service: selectedServiceData.name,
+        date: selectedDate,
+        time: selectedTime,
+        duration: customDuration,
+        price: totalPrice,
+        customerName: customerInfo.name,
+        customerEmail: customerInfo.email,
+        customerPhone: customerInfo.phone,
+        notes: customerInfo.notes
+      };
+
+      const booking = await createBooking(bookingData);
+
+      // Create payment intent (for demo purposes)
+      await createPaymentIntent(totalPrice, booking.id);
+
+      // For demo purposes, simulate successful payment
+      // In production, this would redirect to Stripe Checkout
+      toast({
+        title: "Payment Successful!",
+        description: "Your booking has been confirmed. Redirecting to confirmation page...",
+      });
+      
+      // Simulate payment processing delay
+      setTimeout(() => {
+        window.location.href = `/booking/success?booking_id=${booking.id}`;
+      }, 2000);
+
+    } catch (error: any) {
+      toast({
+        title: "Payment Failed",
+        description: error.message || "Something went wrong. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -65,8 +155,8 @@ const Booking = () => {
 
       {/* Booking Interface */}
       <section className="py-20">
-        <div className="container mx-auto px-4 max-w-4xl">
-          <div className="grid lg:grid-cols-2 gap-8">
+        <div className="container mx-auto px-4 max-w-6xl">
+          <div className="grid lg:grid-cols-3 gap-8">
             {/* Service Selection */}
             <div>
               <Card className="bg-card/80 backdrop-blur-sm border-border">
@@ -75,6 +165,9 @@ const Booking = () => {
                     <Calendar className="h-6 w-6 mr-2" />
                     Select Your Service
                   </CardTitle>
+                  <div className="text-sm text-muted-foreground">
+                    All services: £{hourlyRate}/hour • Choose custom duration below
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -98,10 +191,10 @@ const Booking = () => {
                               </div>
                             </div>
                             <div className="text-right">
-                              <Badge variant="outline" className="mb-1">{service.price}</Badge>
+                              <Badge variant="outline" className="mb-1">£{hourlyRate}/hour</Badge>
                               <div className="flex items-center text-xs text-muted-foreground">
                                 <Clock className="h-3 w-3 mr-1" />
-                                {service.duration}
+                                Custom duration
                               </div>
                             </div>
                           </div>
@@ -111,90 +204,177 @@ const Booking = () => {
                   </div>
                 </CardContent>
               </Card>
+            </div>
 
-              {/* Quick Info */}
+            {/* Date & Time Selection */}
+            <div>
+              <Card className="bg-card/80 backdrop-blur-sm border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-neon-cyan">
+                    <Clock className="h-6 w-6 mr-2" />
+                    Choose Date & Time
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="date">Date</Label>
+                    <Input
+                      id="date"
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="bg-muted/50 border-border focus:border-neon-cyan"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="time">Time</Label>
+                    <Select value={selectedTime} onValueChange={setSelectedTime}>
+                      <SelectTrigger className="bg-muted/50 border-border focus:border-neon-cyan">
+                        <SelectValue placeholder="Select time" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {timeSlots.map((time) => (
+                          <SelectItem key={time} value={time}>{time}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="duration">Session Duration (hours)</Label>
+                    <Select value={customDuration.toString()} onValueChange={(value) => setCustomDuration(parseInt(value))}>
+                      <SelectTrigger className="bg-muted/50 border-border focus:border-neon-cyan">
+                        <SelectValue placeholder="Select duration" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map((hours) => (
+                          <SelectItem key={hours} value={hours.toString()}>
+                            {hours} hour{hours > 1 ? 's' : ''} - £{hours * hourlyRate}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Customer Information */}
               <Card className="mt-6 bg-card/80 backdrop-blur-sm border-border">
                 <CardHeader>
-                  <CardTitle className="text-neon-cyan">Studio Information</CardTitle>
+                  <CardTitle className="flex items-center text-neon-purple">
+                    <User className="h-6 w-6 mr-2" />
+                    Your Information
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-3 text-sm">
+                <CardContent className="space-y-4">
                     <div>
-                      <strong>Location:</strong> Downtown Recording District
+                    <Label htmlFor="name">Name *</Label>
+                    <Input
+                      id="name"
+                      value={customerInfo.name}
+                      onChange={(e) => handleInputChange("name", e.target.value)}
+                      required
+                      className="bg-muted/50 border-border focus:border-neon-purple"
+                    />
                     </div>
+                  
                     <div>
-                      <strong>Hours:</strong> 9 AM - 10 PM (7 days a week)
+                    <Label htmlFor="email">Email *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={customerInfo.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      required
+                      className="bg-muted/50 border-border focus:border-neon-purple"
+                    />
                     </div>
+                  
                     <div>
-                      <strong>Cancellation:</strong> 24-hour notice required
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={customerInfo.phone}
+                      onChange={(e) => handleInputChange("phone", e.target.value)}
+                      className="bg-muted/50 border-border focus:border-neon-purple"
+                    />
                     </div>
+                  
                     <div>
-                      <strong>What to Bring:</strong> Your music, lyrics, and creative energy!
-                    </div>
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      value={customerInfo.notes}
+                      onChange={(e) => handleInputChange("notes", e.target.value)}
+                      placeholder="Any special requirements or notes..."
+                      className="bg-muted/50 border-border focus:border-neon-purple resize-none"
+                      rows={3}
+                    />
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Calendly Integration */}
+            {/* Payment Summary */}
             <div>
               <Card className="bg-card/80 backdrop-blur-sm border-border h-fit">
                 <CardHeader>
                   <CardTitle className="flex items-center text-neon-green">
-                    <Clock className="h-6 w-6 mr-2" />
-                    Schedule Your Session
+                    <CreditCard className="h-6 w-6 mr-2" />
+                    Payment Summary
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {/* Calendly Placeholder */}
-                  <div className="bg-muted/50 rounded-lg p-8 text-center border-2 border-dashed border-border">
-                    <Calendar className="h-16 w-16 mx-auto mb-4 text-neon-cyan opacity-50" />
-                    <h3 className="text-xl font-semibold mb-2">Calendly Integration</h3>
-                    <p className="text-muted-foreground mb-6">
-                      Our booking calendar will be integrated here. For now, click below to open our external booking system.
-                    </p>
+                  {selectedServiceData ? (
+                    <div className="space-y-4">
+                      <div className="flex justify-between">
+                        <span>{selectedServiceData.name}</span>
+                        <span>£{hourlyRate}/hour</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Duration</span>
+                        <span>{customDuration} hour{customDuration > 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Rate</span>
+                        <span>£{hourlyRate} × {customDuration}</span>
+                      </div>
+                      {selectedDate && (
+                        <div className="flex justify-between">
+                          <span>Date</span>
+                          <span>{new Date(selectedDate).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                      {selectedTime && (
+                        <div className="flex justify-between">
+                          <span>Time</span>
+                          <span>{selectedTime}</span>
+                        </div>
+                      )}
+                      <hr className="border-border" />
+                      <div className="flex justify-between font-semibold text-lg">
+                        <span>Total</span>
+                        <span>£{totalPrice}</span>
+                      </div>
+                      
                     <Button 
+                        onClick={handlePayment}
+                        disabled={isProcessing || !selectedServiceData || !selectedDate || !selectedTime || !customerInfo.name || !customerInfo.email}
                       variant="hero" 
                       size="lg" 
-                      onClick={handleCalendlyRedirect}
-                      className="w-full"
-                    >
-                      <ExternalLink className="h-5 w-5 mr-2" />
-                      Open Booking Calendar
-                    </Button>
-                  </div>
-
-                  {/* Sample Time Slots */}
-                  <div className="mt-6">
-                    <h4 className="font-semibold mb-3">Available Today:</h4>
-                    <div className="grid grid-cols-1 gap-2">
-                      {timeSlots.slice(0, 4).map((slot, index) => (
-                        <Button 
-                          key={index}
-                          variant="outline" 
-                          className="justify-start hover:text-neon-green hover:border-neon-green"
-                          disabled={index === 1} // Sample unavailable slot
-                        >
-                          <Clock className="h-4 w-4 mr-2" />
-                          {slot}
-                          {index === 1 && <Badge variant="destructive" className="ml-auto">Booked</Badge>}
+                        className="w-full mt-6"
+                      >
+                        {isProcessing ? "Processing..." : "Pay with Stripe"}
                         </Button>
-                      ))}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Contact for Custom Bookings */}
-              <Card className="mt-6 bg-card/80 backdrop-blur-sm border-border">
-                <CardContent className="p-6">
-                  <h3 className="font-semibold mb-2 text-neon-purple">Need a Custom Package?</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Looking for extended sessions, album packages, or have special requirements? Get in touch for a personalized quote.
-                  </p>
-                  <Button variant="outline" className="w-full" asChild>
-                    <a href="/contact">Contact for Custom Quote</a>
-                  </Button>
+                  ) : (
+                    <p className="text-muted-foreground text-center py-8">
+                      Select a service to see pricing
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </div>
