@@ -184,6 +184,14 @@ All colors MUST be HSL.
     background: var(--gradient-hero);
   }
   
+  .bg-gradient-primary {
+    background: var(--gradient-neon);
+  }
+  
+  .shadow-elegant {
+    box-shadow: var(--shadow-cosmic);
+  }
+  
   .transition-glow {
     transition: var(--transition-glow);
   }
