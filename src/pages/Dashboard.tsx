@@ -33,16 +33,16 @@ export default function Dashboard() {
   const [availableBookings, setAvailableBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
 
-  // Redirect if not authenticated
-  if (!user && !loading) {
-    return <Navigate to="/auth" replace />;
-  }
-
   useEffect(() => {
     if (user) {
       fetchBookings();
     }
   }, [user, isAdmin]);
+
+  // Redirect if not authenticated - moved after hooks
+  if (!user && !loading) {
+    return <Navigate to="/auth" replace />;
+  }
 
   const fetchBookings = async () => {
     setLoadingBookings(true);
