@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Mail, Phone, MapPin, Instagram, Music, Send, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -18,14 +19,33 @@ const Contact = () => {
   });
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would typically send the form data to your backend
-    toast({
-      title: "Message sent!",
-      description: "Thanks for reaching out! We'll get back to you within 24 hours.",
-    });
-    setFormData({ name: "", email: "", phone: "", service: "", message: "" });
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('submit-contact', {
+        body: formData
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast({
+          title: "Message sent!",
+          description: "Thanks for reaching out! We'll get back to you within 24 hours.",
+        });
+        setFormData({ name: "", email: "", phone: "", service: "", message: "" });
+      } else {
+        throw new Error(data.error || "Failed to send message");
+      }
+    } catch (error: any) {
+      console.error("Error submitting contact form:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {

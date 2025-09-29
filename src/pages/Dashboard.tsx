@@ -31,7 +31,9 @@ export default function Dashboard() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [userBookings, setUserBookings] = useState<Booking[]>([]);
   const [availableBookings, setAvailableBookings] = useState<Booking[]>([]);
+  const [contactMessages, setContactMessages] = useState<any[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
+  const [loadingContacts, setLoadingContacts] = useState(true);
 
   useEffect(() => {
     if (user) {
@@ -73,6 +75,15 @@ export default function Dashboard() {
         }));
 
         setBookings(bookingsWithProfiles);
+
+        // Admin can also see contact messages
+        const { data: contactData, error: contactError } = await supabase
+          .from('contact_messages')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (contactError) throw contactError;
+        setContactMessages(contactData || []);
       } else {
         // Regular users see their bookings + available slots
         const [userBookingsRes, availableBookingsRes] = await Promise.all([
@@ -102,6 +113,7 @@ export default function Dashboard() {
       });
     } finally {
       setLoadingBookings(false);
+      setLoadingContacts(false);
     }
   };
 
@@ -213,7 +225,7 @@ export default function Dashboard() {
     );
   };
 
-  if (loading || loadingBookings) {
+  if (loading || loadingBookings || (isAdmin && loadingContacts)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse text-center space-y-4">
@@ -326,6 +338,58 @@ export default function Dashboard() {
                     ))
                   )}
                 </div>
+               </CardContent>
+            </Card>
+
+            {/* Contact Messages Section - Admin Only */}
+            <Card className="border-primary/20 shadow-elegant">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5 text-primary" />
+                  Contact Messages
+                </CardTitle>
+                <CardDescription>
+                  Messages from the contact form
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {contactMessages.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No contact messages yet.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {contactMessages.map((message) => (
+                      <div key={message.id} className="p-4 border border-primary/10 rounded-lg bg-primary/5">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 className="font-semibold text-foreground">{message.name}</h4>
+                            <p className="text-sm text-muted-foreground">{message.email}</p>
+                            {message.phone && (
+                              <p className="text-sm text-muted-foreground">{message.phone}</p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <span className={`inline-block px-2 py-1 rounded text-xs ${
+                              message.status === 'unread' 
+                                ? 'bg-primary/20 text-primary' 
+                                : 'bg-muted text-muted-foreground'
+                            }`}>
+                              {message.status}
+                            </span>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {format(new Date(message.created_at), 'MMM dd, yyyy')}
+                            </p>
+                          </div>
+                        </div>
+                        {message.service_interest && (
+                          <p className="text-sm text-primary mb-2">
+                            Service: {message.service_interest}
+                          </p>
+                        )}
+                        <p className="text-sm text-foreground">{message.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
