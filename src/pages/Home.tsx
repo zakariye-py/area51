@@ -113,7 +113,10 @@ const Home = () => {
                     <img 
                       src={service.image} 
                       alt={service.title}
-                      className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-110"
+                      className={`w-full h-48 object-cover transition-transform duration-300 group-hover:scale-110 ${
+                        service.title === 'Mastering' ? 'object-[center_70%]' : 
+                        service.title === 'Recording' ? 'object-[center_60%] scale-110' : ''
+                      }`}
                     />
                     <div className="absolute inset-0 bg-gradient-cosmic opacity-20"></div>
                   </div>
@@ -139,7 +142,7 @@ const Home = () => {
       <section className="py-20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Why Choose Area 51 Booths?</h2>
+            <h2 className="text-4xl font-bold mb-4">Why Area 51?</h2>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
