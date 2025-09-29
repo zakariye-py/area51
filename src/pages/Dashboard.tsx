@@ -48,20 +48,31 @@ export default function Dashboard() {
     setLoadingBookings(true);
     try {
       if (isAdmin) {
-        // Admin can see all bookings with user details
-        const { data, error } = await supabase
-          .from('bookings')
-          .select(`
-            *,
-            profiles:user_id (
-              full_name,
-              email
-            )
-          `)
-          .order('date', { ascending: true });
+        // Admin can see all bookings - fetch bookings and profiles separately
+        const [bookingsRes, profilesRes] = await Promise.all([
+          supabase
+            .from('bookings')
+            .select('*')
+            .order('date', { ascending: true }),
+          supabase
+            .from('profiles')
+            .select('user_id, full_name, email')
+        ]);
 
-        if (error) throw error;
-        setBookings((data as any) || []);
+        if (bookingsRes.error) throw bookingsRes.error;
+        if (profilesRes.error) throw profilesRes.error;
+
+        // Join the data manually
+        const profilesMap = new Map(
+          (profilesRes.data || []).map(profile => [profile.user_id, profile])
+        );
+
+        const bookingsWithProfiles = (bookingsRes.data || []).map(booking => ({
+          ...booking,
+          profiles: booking.user_id ? profilesMap.get(booking.user_id) : null
+        }));
+
+        setBookings(bookingsWithProfiles);
       } else {
         // Regular users see their bookings + available slots
         const [userBookingsRes, availableBookingsRes] = await Promise.all([
