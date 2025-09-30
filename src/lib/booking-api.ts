@@ -13,9 +13,17 @@ export interface BookingData {
 }
 
 export const createBooking = async (bookingData: BookingData) => {
+  // Get the current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('You must be logged in to create a booking');
+  }
+
   const { data, error } = await (supabase as any)
     .from('bookings')
     .insert([{
+      user_id: user.id,
       service_type: bookingData.service,
       date: bookingData.date,
       time: bookingData.time,
