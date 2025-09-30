@@ -8,8 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar, Clock, Mic, Headphones, Volume2, CreditCard, User, Mail, Phone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import stripePromise from "@/lib/stripe";
-import { createBooking, createPaymentIntent, BookingData } from "@/lib/booking-api";
+import { redirectToCheckout } from "@/lib/stripe";
+import { createBooking, createCheckoutSession, BookingData, getBookingsForDate, isTimeSlotAvailable } from "@/lib/booking-api";
 import { setUserCookie, getUserCookie } from "@/lib/cookies";
 
 const Booking = () => {
@@ -24,6 +24,8 @@ const Booking = () => {
     notes: ""
   });
   const [isProcessing, setIsProcessing] = useState(false);
+  const [existingBookings, setExistingBookings] = useState<any[]>([]);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
   const { toast } = useToast();
 
   // Load user data from cookies on component mount
@@ -38,6 +40,47 @@ const Booking = () => {
       }));
     }
   }, []);
+
+  // Fetch existing bookings when date changes
+  useEffect(() => {
+    if (selectedDate) {
+      fetchExistingBookings();
+    } else {
+      setExistingBookings([]);
+    }
+  }, [selectedDate]);
+
+  // Clear selected time when duration changes (as availability might change)
+  useEffect(() => {
+    if (selectedTime && selectedDate) {
+      const isAvailable = isTimeSlotAvailable(selectedTime, customDuration, existingBookings);
+      if (!isAvailable) {
+        setSelectedTime("");
+        toast({
+          title: "Time Slot Unavailable",
+          description: "The selected time is no longer available for this duration. Please choose another time.",
+          variant: "destructive"
+        });
+      }
+    }
+  }, [customDuration, existingBookings]);
+
+  const fetchExistingBookings = async () => {
+    setLoadingAvailability(true);
+    try {
+      const bookings = await getBookingsForDate(selectedDate);
+      setExistingBookings(bookings);
+    } catch (error) {
+      console.error('Error fetching existing bookings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load availability. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingAvailability(false);
+    }
+  };
 
   const services = [
     {
@@ -115,20 +158,20 @@ const Booking = () => {
 
       const booking = await createBooking(bookingData);
 
-      // Create payment intent (for demo purposes)
-      await createPaymentIntent(totalPrice, booking.id);
+      // Create Stripe checkout session
+      const checkoutSession = await createCheckoutSession(
+        booking.id,
+        totalPrice,
+        customerInfo.email,
+        customerInfo.name,
+        selectedServiceData.name,
+        selectedDate,
+        selectedTime,
+        customDuration
+      );
 
-      // For demo purposes, simulate successful payment
-      // In production, this would redirect to Stripe Checkout
-      toast({
-        title: "Payment Successful!",
-        description: "Your booking has been confirmed. Redirecting to confirmation page...",
-      });
-      
-      // Simulate payment processing delay
-      setTimeout(() => {
-        window.location.href = `/booking/success?booking_id=${booking.id}`;
-      }, 2000);
+      // Redirect to Stripe Checkout
+      await redirectToCheckout(checkoutSession.sessionId);
 
     } catch (error: any) {
       toast({
@@ -136,7 +179,6 @@ const Booking = () => {
         description: error.message || "Something went wrong. Please try again.",
         variant: "destructive"
       });
-    } finally {
       setIsProcessing(false);
     }
   };
@@ -224,6 +266,7 @@ const Booking = () => {
                       value={selectedDate}
                       onChange={(e) => setSelectedDate(e.target.value)}
                       min={new Date().toISOString().split('T')[0]}
+                      max={new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]} // 90 days in advance
                       className="bg-muted/50 border-border focus:border-neon-cyan"
                     />
                   </div>
@@ -232,14 +275,37 @@ const Booking = () => {
                     <Label htmlFor="time">Time</Label>
                     <Select value={selectedTime} onValueChange={setSelectedTime}>
                       <SelectTrigger className="bg-muted/50 border-border focus:border-neon-cyan">
-                        <SelectValue placeholder="Select time" />
+                        <SelectValue placeholder={loadingAvailability ? "Loading availability..." : "Select time"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {timeSlots.map((time) => (
-                          <SelectItem key={time} value={time}>{time}</SelectItem>
-                        ))}
+                        {timeSlots.map((time) => {
+                          const isAvailable = isTimeSlotAvailable(time, customDuration, existingBookings);
+                          return (
+                            <SelectItem 
+                              key={time} 
+                              value={time}
+                              disabled={!isAvailable}
+                              className={!isAvailable ? "text-muted-foreground" : ""}
+                            >
+                              {time} {!isAvailable && "(Unavailable)"}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
+                    {loadingAvailability && (
+                      <p className="text-xs text-muted-foreground mt-1">Checking availability...</p>
+                    )}
+                    {selectedDate && existingBookings.length > 0 && (
+                      <div className="mt-2 p-2 bg-muted/30 rounded-lg">
+                        <p className="text-xs text-muted-foreground mb-1">Existing bookings for {new Date(selectedDate).toLocaleDateString()}:</p>
+                        {existingBookings.map((booking, index) => (
+                          <p key={index} className="text-xs text-muted-foreground">
+                            • {booking.time} - {booking.status}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   
                   <div>
@@ -351,7 +417,18 @@ const Booking = () => {
                       {selectedTime && (
                         <div className="flex justify-between">
                           <span>Time</span>
-                          <span>{selectedTime}</span>
+                          <div className="flex items-center space-x-2">
+                            <span>{selectedTime}</span>
+                            {selectedDate && (
+                              <span className={`text-xs px-2 py-1 rounded ${
+                                isTimeSlotAvailable(selectedTime, customDuration, existingBookings)
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {isTimeSlotAvailable(selectedTime, customDuration, existingBookings) ? 'Available' : 'Unavailable'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       )}
                       <hr className="border-border" />
@@ -362,12 +439,22 @@ const Booking = () => {
                       
                     <Button 
                         onClick={handlePayment}
-                        disabled={isProcessing || !selectedServiceData || !selectedDate || !selectedTime || !customerInfo.name || !customerInfo.email}
+                        disabled={
+                          isProcessing || 
+                          !selectedServiceData || 
+                          !selectedDate || 
+                          !selectedTime || 
+                          !customerInfo.name || 
+                          !customerInfo.email ||
+                          (selectedDate && !isTimeSlotAvailable(selectedTime, customDuration, existingBookings))
+                        }
                       variant="hero" 
                       size="lg" 
                         className="w-full mt-6"
                       >
-                        {isProcessing ? "Processing..." : "Pay with Stripe"}
+                        {isProcessing ? "Processing..." : 
+                         (selectedDate && !isTimeSlotAvailable(selectedTime, customDuration, existingBookings)) ? "Time Slot Unavailable" :
+                         "Pay with Stripe"}
                         </Button>
                     </div>
                   ) : (

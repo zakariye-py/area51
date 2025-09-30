@@ -4,28 +4,39 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, Calendar, Clock, Mic, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getBookingBySessionId } from "@/lib/booking-api";
 
 const BookingSuccess = () => {
   const [searchParams] = useSearchParams();
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const bookingId = searchParams.get('booking_id');
+  const sessionId = searchParams.get('session_id');
 
   useEffect(() => {
-    if (bookingId) {
+    if (bookingId || sessionId) {
       fetchBooking();
     }
-  }, [bookingId]);
+  }, [bookingId, sessionId]);
 
   const fetchBooking = async () => {
     try {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('id', bookingId)
-        .single();
-
-      if (error) throw error;
+      let data;
+      if (sessionId) {
+        // Fetch by Stripe session ID
+        data = await getBookingBySessionId(sessionId);
+      } else if (bookingId) {
+        // Fallback to booking ID
+        const { data: bookingData, error } = await supabase
+          .from('bookings')
+          .select('*')
+          .eq('id', bookingId)
+          .single();
+        
+        if (error) throw error;
+        data = bookingData;
+      }
+      
       setBooking(data);
     } catch (error) {
       console.error('Error fetching booking:', error);
