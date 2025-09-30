@@ -26,7 +26,7 @@ const Navigation = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gradient-neon rounded-full animate-pulse-glow"></div>
-            <span className="text-xl font-bold bg-gradient-neon bg-clip-text text-transparent">
+            <span className="text-xl font-bold text-white">
               Area 51 Booths
             </span>
           </Link>

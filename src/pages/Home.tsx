@@ -65,8 +65,8 @@ const Home = () => {
         
         <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
           <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-float">
-            Step into{" "}
-            <span className="bg-gradient-neon bg-clip-text text-transparent animate-neon-flicker">
+            <span className="text-white">Step into </span>
+            <span className="text-neon-green animate-neon-flicker drop-shadow-[0_0_8px_rgba(0,255,0,0.8)]">
               Area 51
             </span>
           </h1>
