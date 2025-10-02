@@ -6,8 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Clock, Star, User, LogOut, Settings, Music, Headphones, Disc } from 'lucide-react';
+import { Calendar, Clock, Star, User, LogOut, Settings, Music, Headphones, Disc, Bell, Shield, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Booking {
@@ -26,20 +30,54 @@ interface Booking {
 }
 
 export default function Dashboard() {
-  const { user, isAdmin, signOut, loading } = useAuth();
+  const { user, isAdmin, signOut, loading, updatePassword } = useAuth();
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [userBookings, setUserBookings] = useState<Booking[]>([]);
   const [availableBookings, setAvailableBookings] = useState<Booking[]>([]);
   const [contactMessages, setContactMessages] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [loadingContacts, setLoadingContacts] = useState(true);
+  const [activeTab, setActiveTab] = useState('bookings');
+  
+  // Settings state
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [bookingReminders, setBookingReminders] = useState(true);
 
   useEffect(() => {
     if (user) {
       fetchBookings();
+      loadUserProfile();
+      if (isAdmin) {
+        fetchAllUsers();
+      }
     }
   }, [user, isAdmin]);
+
+  const loadUserProfile = async () => {
+    if (!user) return;
+    setFullName(user.user_metadata?.full_name || '');
+    setEmail(user.email || '');
+  };
+
+  const fetchAllUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAllUsers(data || []);
+    } catch (error: any) {
+      console.error('Error fetching users:', error);
+    }
+  };
 
   // Redirect if not authenticated - moved after hooks
   if (!user && !loading) {
@@ -197,6 +235,55 @@ export default function Dashboard() {
     }
   };
 
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Passwords don't match",
+        description: "Please make sure both passwords are the same.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await updatePassword(newPassword);
+
+    if (error) {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Password updated! 🎉",
+        description: "Your password has been successfully changed.",
+      });
+      setNewPassword('');
+      setConfirmPassword('');
+    }
+  };
+
+  const deleteUser = async (userId: string) => {
+    if (!confirm("Are you sure? This user will be gone forever 💔")) return;
+
+    try {
+      // Note: This would require an admin function to properly delete auth users
+      toast({
+        title: "Not implemented",
+        description: "User deletion requires additional setup.",
+        variant: "destructive",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Delete failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const getServiceIcon = (serviceType: string) => {
     switch (serviceType.toLowerCase()) {
       case 'recording':
@@ -261,8 +348,21 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8 space-y-8">
-        {isAdmin ? (
+      <div className="container mx-auto px-4 py-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
+            <TabsTrigger value="bookings">
+              <Calendar className="mr-2 h-4 w-4" />
+              Bookings
+            </TabsTrigger>
+            <TabsTrigger value="settings">
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="bookings" className="space-y-6">
+            {isAdmin ? (
           /* Admin View */
           <div className="space-y-6">
             <Card className="border-primary/20 shadow-elegant">
@@ -485,6 +585,155 @@ export default function Dashboard() {
             </Card>
           </div>
         )}
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-6">
+            <div className="grid gap-6 max-w-4xl mx-auto">
+              {/* Profile Settings */}
+              <Card className="border-primary/20 shadow-elegant">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5 text-primary" />
+                    Profile
+                  </CardTitle>
+                  <CardDescription>Your account information</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Full Name</Label>
+                    <Input value={fullName} disabled className="bg-muted" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Email</Label>
+                    <Input value={email} disabled className="bg-muted" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Password Reset */}
+              <Card className="border-primary/20 shadow-elegant">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-primary" />
+                    Password Reset
+                  </CardTitle>
+                  <CardDescription>Update your account password 🔒</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handlePasswordUpdate} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="newPassword">New Password</Label>
+                      <Input
+                        id="newPassword"
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Enter new password"
+                        minLength={6}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirm Password</Label>
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm new password"
+                        minLength={6}
+                      />
+                    </div>
+                    <Button type="submit">Update Password</Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Notifications */}
+              <Card className="border-primary/20 shadow-elegant">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-primary" />
+                    Notifications
+                  </CardTitle>
+                  <CardDescription>Manage your notification preferences</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="email-notifications">Email Notifications</Label>
+                      <p className="text-sm text-muted-foreground">Receive email updates about your bookings</p>
+                    </div>
+                    <Switch
+                      id="email-notifications"
+                      checked={emailNotifications}
+                      onCheckedChange={setEmailNotifications}
+                    />
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="booking-reminders">Booking Reminders</Label>
+                      <p className="text-sm text-muted-foreground">Get reminded before your sessions</p>
+                    </div>
+                    <Switch
+                      id="booking-reminders"
+                      checked={bookingReminders}
+                      onCheckedChange={setBookingReminders}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Admin: Manage Users */}
+              {isAdmin && (
+                <Card className="border-primary/20 shadow-elegant">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Star className="h-5 w-5 text-primary" />
+                      Manage Users (Admins only)
+                    </CardTitle>
+                    <CardDescription>View and manage user accounts</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {allUsers.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-8">No users found</p>
+                      ) : (
+                        allUsers.map((profile) => (
+                          <div key={profile.id} className="flex items-center justify-between p-4 border border-primary/10 rounded-lg">
+                            <div className="space-y-1">
+                              <p className="font-medium">{profile.full_name || 'No name'}</p>
+                              <p className="text-sm text-muted-foreground">{profile.email}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(profile.email);
+                                  toast({ title: "Email copied" });
+                                }}
+                              >
+                                View 🎧
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => deleteUser(profile.user_id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

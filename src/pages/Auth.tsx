@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,13 +7,27 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Star } from 'lucide-react';
+import { Loader2, Star, ArrowLeft } from 'lucide-react';
 
 export default function Auth() {
-  const { user, signIn, signUp, loading } = useAuth();
+  const { user, signIn, signUp, loading, resetPassword, updatePassword } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [showAdminForm, setShowAdminForm] = useState(false);
+  const [showResetForm, setShowResetForm] = useState(false);
+  const [showNewPasswordForm, setShowNewPasswordForm] = useState(false);
+
+  useEffect(() => {
+    // Check if user is returning from password reset email
+    if (searchParams.get('reset') === 'true') {
+      setShowNewPasswordForm(true);
+      toast({
+        title: "Password Reset",
+        description: "Please enter your new password below.",
+      });
+    }
+  }, [searchParams]);
 
   // Redirect if already authenticated
   if (user && !loading) {
@@ -99,6 +113,69 @@ export default function Auth() {
     setIsLoading(false);
   };
 
+  const handlePasswordReset = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('resetEmail') as string;
+
+    const { error } = await resetPassword(email);
+
+    if (error) {
+      toast({
+        title: "Reset failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Check your email 💌",
+        description: "We've sent you a password reset link. It should arrive in a few moments!",
+      });
+      setShowResetForm(false);
+    }
+
+    setIsLoading(false);
+  };
+
+  const handleNewPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const newPassword = formData.get('newPassword') as string;
+    const confirmPassword = formData.get('confirmPassword') as string;
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Passwords don't match",
+        description: "Please make sure both passwords are the same.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    const { error } = await updatePassword(newPassword);
+
+    if (error) {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Password updated! 🎉",
+        description: "Your password has been successfully changed.",
+      });
+      setShowNewPasswordForm(false);
+    }
+
+    setIsLoading(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -117,7 +194,98 @@ export default function Auth() {
           <p className="text-muted-foreground">Access your musical universe</p>
         </div>
 
-        {!showAdminForm ? (
+        {showNewPasswordForm ? (
+          <Card className="border-primary/20 shadow-elegant">
+            <CardHeader>
+              <CardTitle>Set New Password</CardTitle>
+              <CardDescription>Choose a strong password for your account 🔒</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleNewPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <Input
+                    id="newPassword"
+                    name="newPassword"
+                    type="password"
+                    placeholder="Enter new password"
+                    required
+                    minLength={6}
+                    className="border-primary/20 focus:border-primary"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="Confirm new password"
+                    required
+                    minLength={6}
+                    className="border-primary/20 focus:border-primary"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isLoading}
+                >
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Update Password
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowNewPasswordForm(false)}
+                  className="w-full"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to Sign In
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        ) : showResetForm ? (
+          <Card className="border-primary/20 shadow-elegant">
+            <CardHeader>
+              <CardTitle>Reset Password</CardTitle>
+              <CardDescription>Forgot your password? Don't stress—drop your email and we'll send you a reset link so you can get back to making music 💖</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handlePasswordReset} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="resetEmail">Email</Label>
+                  <Input
+                    id="resetEmail"
+                    name="resetEmail"
+                    type="email"
+                    placeholder="your@email.com"
+                    required
+                    className="border-primary/20 focus:border-primary"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isLoading}
+                >
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Send Reset Link
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowResetForm(false)}
+                  className="w-full"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to Sign In
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        ) : !showAdminForm ? (
           <Card className="border-primary/20 shadow-elegant">
             <CardHeader>
               <CardTitle>Welcome</CardTitle>
@@ -153,6 +321,14 @@ export default function Auth() {
                         className="border-primary/20 focus:border-primary"
                       />
                     </div>
+                    <Button
+                      type="button"
+                      variant="link"
+                      onClick={() => setShowResetForm(true)}
+                      className="w-full text-sm text-muted-foreground hover:text-primary p-0"
+                    >
+                      Forgot your password?
+                    </Button>
                     <Button
                       type="submit"
                       className="w-full"
