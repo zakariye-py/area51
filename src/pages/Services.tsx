@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { Mic, Headphones, Volume2, Clock, DollarSign, Star } from "lucide-react";
-import recordingImage from "@/assets/recording-service.jpg";
-import mixingImage from "@/assets/mixing-service.jpg";
-import masteringImage from "@/assets/mastering-service.jpg";
+import recordingImage from "@/assets/IMG_1340.jpeg";
+import mixingImage from "@/assets/IMG_1341.jpeg";
+import masteringImage from "@/assets/IMG_1342.jpeg";
 
 const Services = () => {
   const services = [
@@ -18,9 +18,9 @@ const Services = () => {
       image: recordingImage,
       duration: "1-4 hours",
       pricing: [
-        { type: "Hourly Rate", price: "£?/hour", description: "Perfect for short sessions" },
-        { type: "Half Day", price: "£?", description: "4 hours of recording time" },
-        { type: "Full Day", price: "£?", description: "8 hours of recording time" }
+        { type: "Hourly Rate", price: "£15/hour", description: "Perfect for short sessions (MIMIMUM 2 HOURS)" },
+        { type: "Half Day", price: "£75", description: "5 hours of recording time" },
+        { type: "Full Day", price: "£140", description: "10 hours of recording time" }
       ],
       features: [
         "Professional condenser microphones",

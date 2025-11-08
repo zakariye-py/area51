@@ -3,10 +3,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { Mic, Headphones, Volume2, Instagram, Music, Zap } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
-import heroImage from "@/assets/hero-studio.jpg";
-import recordingImage from "@/assets/recording-service.jpg";
-import mixingImage from "@/assets/mixing-service.jpg";
-import masteringImage from "@/assets/mastering-service.jpg";
+import heroImage from "@/assets/P1045857.jpg";
+import recordingImage from "@/assets/IMG_1340.jpeg";
+import mixingImage from "@/assets/IMG_1341.jpeg";
+import masteringImage from "@/assets/IMG_1342.jpeg";
+import galleryImage1 from "@/assets/P1045862.jpg";
+import galleryImage2 from "@/assets/P1045866.jpg";
 
 const Home = () => {
   const { user } = useAuth();
@@ -155,6 +157,37 @@ const Home = () => {
                 <p className="text-muted-foreground">{feature.description}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Studio Gallery Section */}
+      <section className="py-20 bg-card/50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">Our Studio</h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Take a look at our state-of-the-art recording facilities
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            <div className="relative overflow-hidden rounded-lg group">
+              <img 
+                src={galleryImage1} 
+                alt="Area 51 Studio"
+                className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-110"
+              />
+              <div className="absolute inset-0 bg-gradient-cosmic opacity-0 group-hover:opacity-30 transition-opacity duration-300"></div>
+            </div>
+            <div className="relative overflow-hidden rounded-lg group">
+              <img 
+                src={galleryImage2} 
+                alt="Area 51 Studio"
+                className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-110"
+              />
+              <div className="absolute inset-0 bg-gradient-cosmic opacity-0 group-hover:opacity-30 transition-opacity duration-300"></div>
+            </div>
           </div>
         </div>
       </section>

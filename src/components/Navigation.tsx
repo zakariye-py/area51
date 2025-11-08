@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, X, User, LogOut } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
+import { Logo } from "./Logo";
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -24,12 +25,7 @@ const Navigation = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-neon rounded-full animate-pulse-glow"></div>
-            <span className="text-xl font-bold text-white">
-              Area 51 Booths
-            </span>
-          </Link>
+          <Logo size="lg" showText={false} className="h-12 md:h-14" />
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
