@@ -1,8 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Link } from "react-router-dom";
-import { Mic, Headphones, Volume2, Instagram, Music, Zap, AlertCircle } from "lucide-react";
+import { Mic, Headphones, Volume2, Instagram, Music, Zap } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import heroImage from "@/assets/hero-studio.jpg";
 import recordingImage from "@/assets/recording-service.jpg";
@@ -55,14 +54,6 @@ const Home = () => {
 
   return (
     <div className="min-h-screen">
-      {/* WIP Notice */}
-      <Alert className="rounded-none border-x-0 border-t-0 border-b border-neon-purple/30 bg-card/95 backdrop-blur-sm">
-        <AlertCircle className="h-5 w-5 text-neon-purple" />
-        <AlertDescription className="text-base">
-          ⚠️ <span className="font-semibold">This studio site is still a Work in Progress!</span> Please contact us directly for pricing and booking info 💬.
-        </AlertDescription>
-      </Alert>
-
       {/* Hero Section */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
         <div 

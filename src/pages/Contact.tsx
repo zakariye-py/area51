@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Mail, Phone, MapPin, Instagram, Music, Send, MessageCircle } from "lucide-react";
+import { Mail, Phone, MapPin, Instagram, Music, Send, MessageCircle, Calendar, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { createBooking, getBookingsForDate, isTimeSlotAvailable, BookingData } from "@/lib/booking-api";
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -17,14 +18,111 @@ const Contact = () => {
     service: "",
     message: ""
   });
+  
+  // Booking state
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
+  const [customDuration, setCustomDuration] = useState(1);
+  const [existingBookings, setExistingBookings] = useState<any[]>([]);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+  
   const { toast } = useToast();
+
+  // Fetch existing bookings when date changes
+  useEffect(() => {
+    if (selectedDate) {
+      fetchExistingBookings();
+    } else {
+      setExistingBookings([]);
+    }
+  }, [selectedDate]);
+
+  // Clear selected time when duration changes (as availability might change)
+  useEffect(() => {
+    if (selectedTime && selectedDate) {
+      const isAvailable = isTimeSlotAvailable(selectedTime, customDuration, existingBookings);
+      if (!isAvailable) {
+        setSelectedTime("");
+        toast({
+          title: "Time Slot Unavailable",
+          description: "The selected time is no longer available for this duration. Please choose another time.",
+          variant: "destructive"
+        });
+      }
+    }
+  }, [customDuration, existingBookings]);
+
+  const fetchExistingBookings = async () => {
+    setLoadingAvailability(true);
+    try {
+      const bookings = await getBookingsForDate(selectedDate);
+      setExistingBookings(bookings);
+    } catch (error) {
+      console.error('Error fetching existing bookings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load availability. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingAvailability(false);
+    }
+  };
+
+  const hourlyRate = 10; // £10 per hour
+  const totalPrice = customDuration * hourlyRate;
+
+  const timeSlots = [
+    "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
+    "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM",
+    "5:00 PM", "6:00 PM", "7:00 PM", "8:00 PM"
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
+      // If booking details are provided, create a booking first
+      if (selectedDate && selectedTime && formData.service) {
+        const serviceMap: { [key: string]: string } = {
+          'recording': 'Recording Session',
+          'mixing': 'Mixing Service', 
+          'mastering': 'Mastering Service',
+          'package': 'Full Production Package',
+          'other': 'General Inquiry'
+        };
+
+        const bookingData: BookingData = {
+          service: serviceMap[formData.service] || formData.service,
+          date: selectedDate,
+          time: selectedTime,
+          duration: customDuration,
+          price: totalPrice,
+          customerName: formData.name,
+          customerEmail: formData.email,
+          customerPhone: formData.phone,
+          notes: formData.message
+        };
+
+        await createBooking(bookingData);
+        
+        toast({
+          title: "Booking Created!",
+          description: `Your ${serviceMap[formData.service]} has been booked for ${new Date(selectedDate).toLocaleDateString()} at ${selectedTime}.`,
+        });
+      }
+
+      // Submit contact form
       const { data, error } = await supabase.functions.invoke('submit-contact', {
-        body: formData
+        body: {
+          ...formData,
+          bookingDetails: selectedDate && selectedTime ? {
+            date: selectedDate,
+            time: selectedTime,
+            duration: customDuration,
+            price: totalPrice
+          } : null
+        }
       });
 
       if (error) throw error;
@@ -35,6 +133,9 @@ const Contact = () => {
           description: "Thanks for reaching out! We'll get back to you within 24 hours.",
         });
         setFormData({ name: "", email: "", phone: "", service: "", message: "" });
+        setSelectedDate("");
+        setSelectedTime("");
+        setCustomDuration(1);
       } else {
         throw new Error(data.error || "Failed to send message");
       }
@@ -130,6 +231,83 @@ const Contact = () => {
                       </Select>
                     </div>
 
+                    {/* Booking Details Section */}
+                    {(formData.service === 'recording' || formData.service === 'mixing' || formData.service === 'mastering') && (
+                      <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-neon-green/30">
+                        <div className="flex items-center text-neon-green font-semibold">
+                          <Calendar className="h-5 w-5 mr-2" />
+                          Book Your Session (Optional)
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="date">Preferred Date</Label>
+                            <Input
+                              id="date"
+                              type="date"
+                              value={selectedDate}
+                              onChange={(e) => setSelectedDate(e.target.value)}
+                              min={new Date().toISOString().split('T')[0]}
+                              max={new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                              className="bg-muted/50 border-border focus:border-neon-green"
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label htmlFor="time">Preferred Time</Label>
+                            <Select value={selectedTime} onValueChange={setSelectedTime}>
+                              <SelectTrigger className="bg-muted/50 border-border focus:border-neon-green">
+                                <SelectValue placeholder={loadingAvailability ? "Loading availability..." : "Select time"} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {timeSlots.map((time) => {
+                                  const isAvailable = selectedDate ? isTimeSlotAvailable(time, customDuration, existingBookings) : true;
+                                  return (
+                                    <SelectItem 
+                                      key={time} 
+                                      value={time}
+                                      disabled={selectedDate && !isAvailable}
+                                      className={selectedDate && !isAvailable ? "text-muted-foreground" : ""}
+                                    >
+                                      {time} {selectedDate && !isAvailable && "(Unavailable)"}
+                                    </SelectItem>
+                                  );
+                                })}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="duration">Session Duration (hours)</Label>
+                          <Select value={customDuration.toString()} onValueChange={(value) => setCustomDuration(parseInt(value))}>
+                            <SelectTrigger className="bg-muted/50 border-border focus:border-neon-green">
+                              <SelectValue placeholder="Select duration" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[1, 2, 3, 4, 5, 6, 7, 8].map((hours) => (
+                                <SelectItem key={hours} value={hours.toString()}>
+                                  {hours} hour{hours > 1 ? 's' : ''} - £{hours * hourlyRate}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {selectedDate && selectedTime && (
+                          <div className="p-3 bg-neon-green/10 rounded-lg border border-neon-green/30">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-neon-green font-semibold">Estimated Total:</span>
+                              <span className="text-neon-green font-bold">£{totalPrice}</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {new Date(selectedDate).toLocaleDateString()} at {selectedTime} • {customDuration} hour{customDuration > 1 ? 's' : ''}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div>
                       <Label htmlFor="message">Message *</Label>
                       <Textarea
@@ -145,7 +323,7 @@ const Contact = () => {
 
                     <Button type="submit" variant="hero" size="lg" className="w-full">
                       <Send className="h-5 w-5 mr-2" />
-                      Send Message
+                      {selectedDate && selectedTime ? "Send Message & Book Session" : "Send Message"}
                     </Button>
                   </form>
                 </CardContent>
