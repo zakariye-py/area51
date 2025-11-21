@@ -208,7 +208,7 @@ const Home = () => {
               </a>
             </Button>
             <Button variant="outline" size="lg" asChild>
-              <a href="https://tiktok.com/area51booths" target="_blank" rel="noopener noreferrer">
+              <a href="https://tiktok.com/@area51booths" target="_blank" rel="noopener noreferrer">
                 <Music className="h-5 w-5 mr-2" />
                 TikTok
               </a>

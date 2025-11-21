@@ -80,7 +80,7 @@ export default function Auth() {
     } else {
       toast({
         title: "Account created!",
-        description: "Please check your email to verify your account.",
+        description: "Your account has been created successfully. You are now signed in.",
       });
     }
 

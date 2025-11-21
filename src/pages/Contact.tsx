@@ -362,7 +362,7 @@ const Contact = () => {
                     </div>
                     <div>
                       <p className="font-semibold">Phone</p>
-                      <p className="text-muted-foreground">(555) 123-AREA (2732)</p>
+                      <p className="text-muted-foreground">+44 07925223242</p>
                     </div>
                   </div>
 
@@ -372,7 +372,7 @@ const Contact = () => {
                     </div>
                     <div>
                       <p className="font-semibold">Email</p>
-                      <p className="text-muted-foreground">info@area51booths.com</p>
+                      <p className="text-muted-foreground">area51booths@gmail.com</p>
                     </div>
                   </div>
 
@@ -383,8 +383,8 @@ const Contact = () => {
                     <div>
                       <p className="font-semibold">Location</p>
                       <p className="text-muted-foreground">
-                        123 Music District Blvd<br />
-                        Studio City, CA 91604
+                        Durnford Street<br />
+                        Bristol, BS3 2AW
                       </p>
                     </div>
                   </div>

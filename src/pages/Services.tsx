@@ -2,10 +2,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
-import { Mic, Headphones, Volume2, Clock, DollarSign, Star } from "lucide-react";
+import { Mic, Headphones, Volume2, Clock, DollarSign, Star, Video } from "lucide-react";
 import recordingImage from "@/assets/IMG_1340.jpeg";
 import mixingImage from "@/assets/IMG_1341.jpeg";
 import masteringImage from "@/assets/IMG_1342.jpeg";
+import promoVideoImage from "@/assets/P1045857.jpg";
 
 const Services = () => {
   const services = [
@@ -39,9 +40,7 @@ const Services = () => {
       image: mixingImage,
       duration: "1-3 days",
       pricing: [
-        { type: "Per Song", price: "£?", description: "Professional mix for one track" },
-        { type: "EP Package", price: "£?", description: "4-6 songs mixed" },
-        { type: "Album Package", price: "£?", description: "10+ songs mixed" }
+        { type: "Per Song", price: "£30", description: "Professional mix for one track" }
       ],
       features: [
         "Professional mixing consoles",
@@ -52,24 +51,43 @@ const Services = () => {
       ]
     },
     {
-      id: "mastering",
+      id: "mixing-mastering",
       icon: <Volume2 className="h-12 w-12" />,
-      title: "Mastering",
-      subtitle: "Final Polish & Optimization",
-      description: "The final step to make your music sound its best across all playback systems. Mastering adds the professional sheen that makes your tracks radio and streaming-ready.",
+      title: "Mixing & Mastering",
+      subtitle: "Complete Audio Production Package",
+      description: "Get both mixing and mastering services together for the ultimate professional sound. Perfect for artists who want a complete, polished product ready for release.",
       image: masteringImage,
-      duration: "1-2 days",
+      duration: "2-5 days",
       pricing: [
-        { type: "Per Song", price: "$75", description: "Professional master for one track" },
-        { type: "EP Package", price: "$250", description: "4-6 songs mastered" },
-        { type: "Album Package", price: "$500", description: "10+ songs mastered" }
+        { type: "Per Song", price: "£50", description: "Professional mix and master for one track" }
       ],
       features: [
-        "High-end mastering suite",
-        "Reference-grade monitors",
+        "Professional mixing and mastering",
+        "Industry-standard processing",
+        "Reference-grade monitoring",
         "Multiple format delivery",
         "Streaming optimization",
-        "Vinyl preparation available"
+        "Unlimited revisions"
+      ]
+    },
+    {
+      id: "promo-video",
+      icon: <Video className="h-12 w-12" />,
+      title: "Promo Video",
+      subtitle: "Professional Video Production",
+      description: "Create engaging promotional videos for your music. From simple lyric videos to dynamic performance captures, we'll help you showcase your art visually.",
+      image: promoVideoImage,
+      duration: "3-7 days",
+      pricing: [
+        { type: "Per Video", price: "£30", description: "Professional promo video production" }
+      ],
+      features: [
+        "Professional video production",
+        "Multiple camera angles",
+        "Professional editing",
+        "Color grading and effects",
+        "Social media optimization",
+        "Multiple format delivery"
       ]
     }
   ];

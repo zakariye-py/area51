@@ -11,6 +11,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   makeAdmin: (userId: string) => Promise<{ error: any }>;
+  createAdminUser: (email: string, password: string, fullName: string) => Promise<{ error: any; userId?: string }>;
   resetPassword: (email: string) => Promise<{ error: any }>;
   updatePassword: (newPassword: string) => Promise<{ error: any }>;
 }
@@ -66,13 +67,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName
         }
@@ -100,6 +98,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
+  const createAdminUser = async (email: string, password: string, fullName: string) => {
+    // First, create the user
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName
+        }
+      }
+    });
+
+    if (signUpError || !signUpData.user) {
+      return { error: signUpError };
+    }
+
+    // Then, make them admin
+    const { error: adminError } = await supabase
+      .from('user_roles')
+      .insert({ user_id: signUpData.user.id, role: 'admin' });
+
+    if (adminError) {
+      return { error: adminError };
+    }
+
+    return { error: null, userId: signUpData.user.id };
+  };
+
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth?reset=true`,
@@ -123,6 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn,
     signOut,
     makeAdmin,
+    createAdminUser,
     resetPassword,
     updatePassword
   };

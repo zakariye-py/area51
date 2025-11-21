@@ -30,7 +30,7 @@ interface Booking {
 }
 
 export default function Dashboard() {
-  const { user, isAdmin, signOut, loading, updatePassword } = useAuth();
+  const { user, isAdmin, signOut, loading, updatePassword, createAdminUser } = useAuth();
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [userBookings, setUserBookings] = useState<Booking[]>([]);
@@ -48,6 +48,12 @@ export default function Dashboard() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [bookingReminders, setBookingReminders] = useState(true);
+  
+  // Admin user creation state
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [newAdminName, setNewAdminName] = useState('');
+  const [creatingAdmin, setCreatingAdmin] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -281,6 +287,50 @@ export default function Dashboard() {
         description: error.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const handleCreateAdminUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingAdmin(true);
+
+    if (!newAdminEmail || !newAdminPassword || !newAdminName) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all fields.",
+        variant: "destructive",
+      });
+      setCreatingAdmin(false);
+      return;
+    }
+
+    try {
+      const { error } = await createAdminUser(newAdminEmail, newAdminPassword, newAdminName);
+
+      if (error) {
+        toast({
+          title: "Failed to create admin user",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Admin user created! 🎉",
+          description: `Admin account created for ${newAdminEmail}`,
+        });
+        setNewAdminEmail('');
+        setNewAdminPassword('');
+        setNewAdminName('');
+        fetchAllUsers();
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingAdmin(false);
     }
   };
 
@@ -683,6 +733,64 @@ export default function Dashboard() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Admin: Create New Admin User */}
+              {isAdmin && (
+                <Card className="border-primary/20 shadow-elegant">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Shield className="h-5 w-5 text-primary" />
+                      Create New Admin User
+                    </CardTitle>
+                    <CardDescription>Create a new admin account with full access</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleCreateAdminUser} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="newAdminName">Full Name</Label>
+                        <Input
+                          id="newAdminName"
+                          type="text"
+                          value={newAdminName}
+                          onChange={(e) => setNewAdminName(e.target.value)}
+                          placeholder="Enter full name"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="newAdminEmail">Email</Label>
+                        <Input
+                          id="newAdminEmail"
+                          type="email"
+                          value={newAdminEmail}
+                          onChange={(e) => setNewAdminEmail(e.target.value)}
+                          placeholder="admin@example.com"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="newAdminPassword">Password</Label>
+                        <Input
+                          id="newAdminPassword"
+                          type="password"
+                          value={newAdminPassword}
+                          onChange={(e) => setNewAdminPassword(e.target.value)}
+                          placeholder="Enter password (min 6 characters)"
+                          minLength={6}
+                          required
+                        />
+                      </div>
+                      <Button 
+                        type="submit" 
+                        className="w-full"
+                        disabled={creatingAdmin}
+                      >
+                        {creatingAdmin ? "Creating..." : "Create Admin User"}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Admin: Manage Users */}
               {isAdmin && (
