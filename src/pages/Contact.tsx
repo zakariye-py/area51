@@ -23,7 +23,7 @@ const Contact = () => {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [customDuration, setCustomDuration] = useState(1);
-  const [existingBookings, setExistingBookings] = useState<any[]>([]);
+  const [existingBookings, setExistingBookings] = useState<{time: string; status: string; duration?: number}[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   
   const { toast } = useToast();
@@ -50,18 +50,17 @@ const Contact = () => {
         });
       }
     }
-  }, [customDuration, existingBookings]);
+  }, [customDuration, existingBookings, selectedTime, selectedDate, toast]);
 
   const fetchExistingBookings = async () => {
     setLoadingAvailability(true);
     try {
       const bookings = await getBookingsForDate(selectedDate);
       setExistingBookings(bookings);
-    } catch (error) {
-      console.error('Error fetching existing bookings:', error);
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to load availability. Please try again.",
+        description: error.message || "Failed to load availability. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -140,7 +139,6 @@ const Contact = () => {
         throw new Error(data.error || "Failed to send message");
       }
     } catch (error: any) {
-      console.error("Error submitting contact form:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to send message. Please try again.",

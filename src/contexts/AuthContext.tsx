@@ -25,29 +25,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+    
+    // Helper function to check admin status
+    const checkAdminStatus = async (userId: string) => {
+      try {
+        const { data } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .eq('role', 'admin')
+          .maybeSingle();
+        
+        if (isMounted) {
+          setIsAdmin(!!data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setIsAdmin(false);
+        }
+      }
+    };
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!isMounted) return;
+        
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Check if user is admin
-          setTimeout(async () => {
-            try {
-              const { data } = await supabase
-                .from('user_roles')
-                .select('role')
-                .eq('user_id', session.user.id)
-                .eq('role', 'admin')
-                .maybeSingle();
-              
-              setIsAdmin(!!data);
-            } catch (error) {
-              console.error('Error checking admin status:', error);
-              setIsAdmin(false);
-            }
-          }, 0);
+          await checkAdminStatus(session.user.id);
         } else {
           setIsAdmin(false);
         }
@@ -57,13 +66,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!isMounted) return;
+      
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        await checkAdminStatus(session.user.id);
+      } else {
+        setIsAdmin(false);
+      }
+      
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
@@ -99,31 +120,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const createAdminUser = async (email: string, password: string, fullName: string) => {
-    // First, create the user
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName
+    // Validate input
+    if (!email || !password || !fullName) {
+      return { error: { message: 'All fields are required' } };
+    }
+
+    if (password.length < 6) {
+      return { error: { message: 'Password must be at least 6 characters' } };
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return { error: { message: 'Invalid email format' } };
+    }
+
+    let userId: string | undefined;
+    
+    try {
+      // First, create the user
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName
+          }
         }
+      });
+
+      if (signUpError || !signUpData.user) {
+        return { error: signUpError || { message: 'Failed to create user' } };
       }
-    });
 
-    if (signUpError || !signUpData.user) {
-      return { error: signUpError };
+      userId = signUpData.user.id;
+
+      // Then, make them admin
+      const { error: adminError } = await supabase
+        .from('user_roles')
+        .insert({ user_id: userId, role: 'admin' });
+
+      if (adminError) {
+        // If admin role assignment fails, we can't easily rollback the user creation
+        // but we return the error so the caller knows what happened
+        return { error: adminError, userId };
+      }
+
+      return { error: null, userId };
+    } catch (error: any) {
+      return { error: { message: error.message || 'An unexpected error occurred' }, userId };
     }
-
-    // Then, make them admin
-    const { error: adminError } = await supabase
-      .from('user_roles')
-      .insert({ user_id: signUpData.user.id, role: 'admin' });
-
-    if (adminError) {
-      return { error: adminError };
-    }
-
-    return { error: null, userId: signUpData.user.id };
   };
 
   const resetPassword = async (email: string) => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +10,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar, Clock, Star, User, LogOut, Settings, Music, Headphones, Disc, Bell, Shield, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -29,14 +39,37 @@ interface Booking {
   };
 }
 
+interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string | null;
+  service_interest?: string | null;
+  message: string;
+  status: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+interface UserProfile {
+  id: string;
+  user_id: string;
+  full_name: string | null;
+  email: string;
+  created_at: string;
+}
+
 export default function Dashboard() {
   const { user, isAdmin, signOut, loading, updatePassword, createAdminUser } = useAuth();
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [userBookings, setUserBookings] = useState<Booking[]>([]);
   const [availableBookings, setAvailableBookings] = useState<Booking[]>([]);
-  const [contactMessages, setContactMessages] = useState<any[]>([]);
-  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [loadingContacts, setLoadingContacts] = useState(true);
   const [activeTab, setActiveTab] = useState('bookings');
@@ -55,23 +88,15 @@ export default function Dashboard() {
   const [newAdminName, setNewAdminName] = useState('');
   const [creatingAdmin, setCreatingAdmin] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchBookings();
-      loadUserProfile();
-      if (isAdmin) {
-        fetchAllUsers();
-      }
-    }
-  }, [user, isAdmin]);
-
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     if (!user) return;
     setFullName(user.user_metadata?.full_name || '');
     setEmail(user.email || '');
-  };
+  }, [user]);
 
-  const fetchAllUsers = async () => {
+  const fetchAllUsers = useCallback(async () => {
+    if (!isAdmin) return;
+    setLoadingUsers(true);
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -81,16 +106,17 @@ export default function Dashboard() {
       if (error) throw error;
       setAllUsers(data || []);
     } catch (error: any) {
-      console.error('Error fetching users:', error);
+      toast({
+        title: "Error fetching users",
+        description: error.message || "Failed to load users",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingUsers(false);
     }
-  };
+  }, [isAdmin, toast]);
 
-  // Redirect if not authenticated - moved after hooks
-  if (!user && !loading) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     setLoadingBookings(true);
     try {
       if (isAdmin) {
@@ -159,17 +185,54 @@ export default function Dashboard() {
       setLoadingBookings(false);
       setLoadingContacts(false);
     }
-  };
+  }, [user, isAdmin, toast]);
+
+  useEffect(() => {
+    if (user) {
+      fetchBookings();
+      loadUserProfile();
+      if (isAdmin) {
+        fetchAllUsers();
+      }
+    }
+  }, [user, isAdmin, fetchBookings, loadUserProfile, fetchAllUsers]);
+
+  // Redirect if not authenticated - moved after hooks
+  if (!user && !loading) {
+    return <Navigate to="/auth" replace />;
+  }
 
   const bookSlot = async (bookingId: string) => {
+    if (!user) return;
+    
     try {
+      // First check if slot is still available
+      const { data: bookingData, error: checkError } = await supabase
+        .from('bookings')
+        .select('status')
+        .eq('id', bookingId)
+        .single();
+
+      if (checkError) throw checkError;
+
+      if (bookingData.status !== 'available') {
+        toast({
+          title: "Slot no longer available",
+          description: "This slot has been booked by someone else. Please choose another.",
+          variant: "destructive",
+        });
+        fetchBookings();
+        return;
+      }
+
       const { error } = await supabase
         .from('bookings')
         .update({
-          user_id: user!.id,
+          user_id: user.id,
           status: 'booked'
         })
-        .eq('id', bookingId);
+        .eq('id', bookingId)
+        .eq('status', 'available'); // Double-check status hasn't changed
 
       if (error) throw error;
 
@@ -182,9 +245,10 @@ export default function Dashboard() {
     } catch (error: any) {
       toast({
         title: "Booking failed",
-        description: error.message,
+        description: error.message || "Failed to book slot. Please try again.",
         variant: "destructive",
       });
+      fetchBookings(); // Refresh to show updated availability
     }
   };
 
@@ -217,12 +281,18 @@ export default function Dashboard() {
     }
   };
 
-  const deleteBooking = async (bookingId: string) => {
+  const handleDeleteBookingClick = (bookingId: string) => {
+    setDeleteBookingId(bookingId);
+  };
+
+  const deleteBooking = async () => {
+    if (!deleteBookingId) return;
+
     try {
       const { error } = await supabase
         .from('bookings')
         .delete()
-        .eq('id', bookingId);
+        .eq('id', deleteBookingId);
 
       if (error) throw error;
 
@@ -231,11 +301,12 @@ export default function Dashboard() {
         description: "The booking has been removed.",
       });
 
+      setDeleteBookingId(null);
       fetchBookings();
     } catch (error: any) {
       toast({
         title: "Delete failed",
-        description: error.message,
+        description: error.message || "Failed to delete booking",
         variant: "destructive",
       });
     }
@@ -244,6 +315,24 @@ export default function Dashboard() {
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!newPassword || !confirmPassword) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in both password fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       toast({
         title: "Passwords don't match",
@@ -253,26 +342,38 @@ export default function Dashboard() {
       return;
     }
 
-    const { error } = await updatePassword(newPassword);
+    try {
+      const { error } = await updatePassword(newPassword);
 
-    if (error) {
+      if (error) {
+        toast({
+          title: "Update failed",
+          description: error.message || "Failed to update password. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Password updated! 🎉",
+          description: "Your password has been successfully changed.",
+        });
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+    } catch (error: any) {
       toast({
-        title: "Update failed",
-        description: error.message,
+        title: "Error",
+        description: error.message || "An unexpected error occurred.",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Password updated! 🎉",
-        description: "Your password has been successfully changed.",
-      });
-      setNewPassword('');
-      setConfirmPassword('');
     }
   };
 
-  const deleteUser = async (userId: string) => {
-    if (!confirm("Are you sure? This user will be gone forever 💔")) return;
+  const handleDeleteUserClick = (userId: string) => {
+    setDeleteUserId(userId);
+  };
+
+  const deleteUser = async () => {
+    if (!deleteUserId) return;
 
     try {
       // Note: This would require an admin function to properly delete auth users
@@ -281,10 +382,11 @@ export default function Dashboard() {
         description: "User deletion requires additional setup.",
         variant: "destructive",
       });
+      setDeleteUserId(null);
     } catch (error: any) {
       toast({
         title: "Delete failed",
-        description: error.message,
+        description: error.message || "Failed to delete user",
         variant: "destructive",
       });
     }
@@ -479,7 +581,7 @@ export default function Dashboard() {
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => deleteBooking(booking.id)}
+                            onClick={() => handleDeleteBookingClick(booking.id)}
                           >
                             Delete
                           </Button>
@@ -804,7 +906,9 @@ export default function Dashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {allUsers.length === 0 ? (
+                      {loadingUsers ? (
+                        <p className="text-center text-muted-foreground py-8">Loading users...</p>
+                      ) : allUsers.length === 0 ? (
                         <p className="text-center text-muted-foreground py-8">No users found</p>
                       ) : (
                         allUsers.map((profile) => (
@@ -827,7 +931,7 @@ export default function Dashboard() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => deleteUser(profile.user_id)}
+                                onClick={() => handleDeleteUserClick(profile.user_id)}
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
@@ -843,6 +947,42 @@ export default function Dashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Delete Booking Confirmation Dialog */}
+      <AlertDialog open={!!deleteBookingId} onOpenChange={(open) => !open && setDeleteBookingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the booking.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteBooking} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog open={!!deleteUserId} onOpenChange={(open) => !open && setDeleteUserId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the user account and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteUser} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

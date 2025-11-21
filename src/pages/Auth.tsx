@@ -147,6 +147,26 @@ export default function Auth() {
     const newPassword = formData.get('newPassword') as string;
     const confirmPassword = formData.get('confirmPassword') as string;
 
+    if (!newPassword || !confirmPassword) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in both password fields.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       toast({
         title: "Passwords don't match",
@@ -157,7 +177,8 @@ export default function Auth() {
       return;
     }
 
-    const { error } = await updatePassword(newPassword);
+    try {
+      const { error } = await updatePassword(newPassword);
 
     if (error) {
       toast({
@@ -171,9 +192,16 @@ export default function Auth() {
         description: "Your password has been successfully changed.",
       });
       setShowNewPasswordForm(false);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   if (loading) {
