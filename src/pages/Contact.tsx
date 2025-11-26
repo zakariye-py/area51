@@ -360,7 +360,7 @@ const Contact = () => {
                     </div>
                     <div>
                       <p className="font-semibold">Phone</p>
-                      <p className="text-muted-foreground">+44 07925223242</p>
+                      <p className="text-muted-foreground">+44 7405 821414</p>
                     </div>
                   </div>
 
